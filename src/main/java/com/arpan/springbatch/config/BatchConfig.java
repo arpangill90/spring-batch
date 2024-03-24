@@ -1,12 +1,15 @@
 package com.arpan.springbatch.config;
 
+import com.arpan.springbatch.data.dao.EmployeeRepository;
 import com.arpan.springbatch.data.entity.Employee;
 import lombok.RequiredArgsConstructor;
+import org.springframework.batch.item.data.RepositoryItemWriter;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.LineMapper;
 import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.FileSystemResource;
 
@@ -14,6 +17,9 @@ import org.springframework.core.io.FileSystemResource;
 @RequiredArgsConstructor
 public class BatchConfig {
 
+    private final EmployeeRepository employeeRepository;
+
+    @Bean
     public FlatFileItemReader<Employee> itemReader() {
         FlatFileItemReader<Employee> itemReader = new FlatFileItemReader<>();
         itemReader.setResource(new FileSystemResource("src/main/resources/employees.csv"));
@@ -22,6 +28,20 @@ public class BatchConfig {
         itemReader.setLineMapper(lineMapper());
 
         return itemReader;
+    }
+
+    @Bean
+    public EmployeeProcessor processor() {
+        return new EmployeeProcessor();
+    }
+
+    @Bean
+    public RepositoryItemWriter<Employee> write() {
+        RepositoryItemWriter<Employee> writer = new RepositoryItemWriter<>();
+        writer.setRepository(employeeRepository);
+        writer.setMethodName("save");
+
+        return writer;
     }
 
     private LineMapper<Employee> lineMapper() {
