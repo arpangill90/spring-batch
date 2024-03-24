@@ -3,6 +3,11 @@ package com.arpan.springbatch.config;
 import com.arpan.springbatch.data.dao.EmployeeRepository;
 import com.arpan.springbatch.data.entity.Employee;
 import lombok.RequiredArgsConstructor;
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.Step;
+import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.data.RepositoryItemWriter;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.LineMapper;
@@ -12,12 +17,15 @@ import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration
 @RequiredArgsConstructor
 public class BatchConfig {
 
     private final EmployeeRepository employeeRepository;
+    private final JobRepository jobRepository;
+    private final PlatformTransactionManager platformTransactionManager;
 
     @Bean
     public FlatFileItemReader<Employee> itemReader() {
@@ -36,12 +44,29 @@ public class BatchConfig {
     }
 
     @Bean
-    public RepositoryItemWriter<Employee> write() {
+    public RepositoryItemWriter<Employee> writer() {
         RepositoryItemWriter<Employee> writer = new RepositoryItemWriter<>();
         writer.setRepository(employeeRepository);
         writer.setMethodName("save");
 
         return writer;
+    }
+
+    @Bean
+    public Step importStep() {
+        return new StepBuilder("csvImport", jobRepository)
+                .<Employee, Employee>chunk(10, platformTransactionManager)
+                .reader(itemReader())
+                .processor(processor())
+                .writer(writer())
+                .build();
+    }
+
+    @Bean
+    public Job runJob() {
+        return new JobBuilder("importEmployees", jobRepository)
+                .start(importStep()) //if there are more steps, those can be added here
+                .build();
     }
 
     private LineMapper<Employee> lineMapper() {
