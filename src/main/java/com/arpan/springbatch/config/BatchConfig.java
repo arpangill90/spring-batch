@@ -17,6 +17,8 @@ import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration
@@ -58,6 +60,7 @@ public class BatchConfig {
                 .<Employee, Employee>chunk(10, platformTransactionManager)
                 .reader(itemReader())
                 .processor(processor())
+                .taskExecutor(taskExecutor())
                 .writer(writer())
                 .build();
     }
@@ -67,6 +70,13 @@ public class BatchConfig {
         return new JobBuilder("importEmployees", jobRepository)
                 .start(importStep()) //if there are more steps, those can be added here
                 .build();
+    }
+
+    @Bean
+    public TaskExecutor taskExecutor() {
+        SimpleAsyncTaskExecutor asyncTaskExecutor = new SimpleAsyncTaskExecutor();
+        asyncTaskExecutor.setConcurrencyLimit(10); // 10 thread would run
+        return asyncTaskExecutor;
     }
 
     private LineMapper<Employee> lineMapper() {
